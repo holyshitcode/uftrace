@@ -140,6 +140,7 @@ static int add_graph_exit(struct uftrace_task_graph *tg)
 {
 	struct uftrace_fstack *fstack = fstack_get(tg->task, tg->task->stack_count);
 	struct uftrace_graph_node *node = tg->node;
+	uint64_t self_time;
 
 	if (node == NULL || fstack == NULL)
 		return -1;
@@ -174,6 +175,20 @@ static int add_graph_exit(struct uftrace_task_graph *tg)
 out:
 	node->time += fstack->total_time;
 	node->child_time += fstack->child_time;
+
+	self_time = fstack->total_time > fstack->child_time ?
+			    fstack->total_time - fstack->child_time :
+			    0;
+
+	if (node->total.min > fstack->total_time || node->total.min == 0)
+		node->total.min = fstack->total_time;
+	if (node->total.max < fstack->total_time)
+		node->total.max = fstack->total_time;
+
+	if (node->self.min > self_time || node->self.min == 0)
+		node->self.min = self_time;
+	if (node->self.max < self_time)
+		node->self.max = self_time;
 
 	if (exit_cb)
 		exit_cb(tg, cb_arg);
