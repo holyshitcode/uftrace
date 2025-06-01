@@ -417,7 +417,6 @@ class TestBase:
                     result.append(ln)
 
         return '\n'.join(result)
-
     def dump_sort(self, output, ignored):
         """ This function post-processes output of the test to be compared .
             It ignores blank and comment (#) lines and remaining functions.  """
