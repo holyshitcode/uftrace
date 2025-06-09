@@ -645,6 +645,14 @@ static int parse_time_action(char *action, struct uftrace_trigger *tr,
 	return 0;
 }
 
+static int parse_time_action_simple(char *action, struct uftrace_trigger *tr,
+				    struct uftrace_filter_setting *setting)
+{
+	tr->flags |= TRIGGER_FL_TIME_FILTER | TRIGGER_FL_TRACE_OFF;
+	tr->time = parse_time(action + 5, 3);
+	return 0;
+}
+
 static int parse_size_action(char *action, struct uftrace_trigger *tr,
 			     struct uftrace_filter_setting *setting)
 {
@@ -989,6 +997,16 @@ static const struct trigger_action_parser actions[] = {
 		"if:",
 		parse_cond_action,
 		TRIGGER_FL_FILTER,
+	},
+	{
+		"time-action=",
+		parse_time_action_simple,
+		TRIGGER_FL_TIME_ACTION,
+	},
+	{
+		"size-action=",
+		parse_size_action,
+		TRIGGER_FL_SIZE_ACTION,
 	},
 };
 
