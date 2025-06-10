@@ -120,6 +120,10 @@ static void print_trigger(struct uftrace_trigger *tr)
 		snprintf_trigger_read(buf, sizeof(buf), tr->read);
 		pr_dbg("\ttrigger: read (%s)\n", buf);
 	}
+
+	if (tr->flags & TRIGGER_FL_TIME_ACTION) {
+		pr_dbg("\ttrigger: time action  start_time=%" PRIu64 " end_time=%" PRIu64 "\n");
+	}
 }
 
 /**
@@ -305,6 +309,11 @@ void update_trigger(struct uftrace_filter *filter, struct uftrace_trigger *tr, b
 		filter->trigger.read |= tr->read;
 	if (tr->flags & TRIGGER_FL_SIZE_FILTER)
 		filter->trigger.size = tr->size;
+
+	if (tr->flags & TRIGGER_FL_TIME_ACTION) {
+		filter->trigger.start_time = tr->start_time;
+		filter->trigger.end_time = tr->end_time;
+	}
 }
 
 bool uftrace_eval_cond(struct uftrace_filter_cond *cond, long val)
@@ -645,11 +654,32 @@ static int parse_time_action(char *action, struct uftrace_trigger *tr,
 	return 0;
 }
 
-static int parse_time_action_simple(char *action, struct uftrace_trigger *tr,
-				    struct uftrace_filter_setting *setting)
+static int parse_time_range(char *action, struct uftrace_trigger *tr,
+			    struct uftrace_filter_setting *setting)
 {
-	tr->flags |= TRIGGER_FL_TIME_FILTER | TRIGGER_FL_TRACE_OFF;
-	tr->time = parse_time(action + 5, 3);
+	tr->flags |= TRIGGER_FL_TIME_ACTION;
+	char *sep = strchr(action, '~');
+	if (!sep) {
+		pr_err("invalid time range format: missing '~'\n");
+		return -1;
+	}
+
+	*sep = '\0'; // '~' 문자를 널 문자로 바꿔서 문자열 분리
+	char *start_str = action;
+	char *end_str = sep + 1;
+
+	/* 시작 시간 파싱 */
+	if (strlen(start_str) > 0)
+		tr->start_time = parse_time(start_str, 3); // 단위 처리 포함
+	else
+		tr->start_time = 0;
+
+	/* 종료 시간 파싱 */
+	if (strlen(end_str) > 0)
+		tr->end_time = parse_time(end_str, 3);
+	else
+		tr->end_time = UINT64_MAX;
+
 	return 0;
 }
 
@@ -1000,13 +1030,8 @@ static const struct trigger_action_parser actions[] = {
 	},
 	{
 		"time-action=",
-		parse_time_action_simple,
+		parse_time_range,
 		TRIGGER_FL_TIME_ACTION,
-	},
-	{
-		"size-action=",
-		parse_size_action,
-		TRIGGER_FL_SIZE_ACTION,
 	},
 };
 
