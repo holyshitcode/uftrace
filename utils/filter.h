@@ -40,7 +40,6 @@ enum trigger_flag {
 	TRIGGER_FL_SIZE_FILTER = (1U << 19),
 	TRIGGER_FL_CLEAR = (1U << 20), /* Reverse other flags when set */
 	TRIGGER_FL_TIME_ACTION = (1U << 21),
-	TRIGGER_FL_SIZE_ACTION = (1U << 22),
 };
 
 /**
@@ -94,6 +93,8 @@ struct uftrace_trigger {
 	enum trigger_read_type read;
 	struct uftrace_filter_cond cond;
 	struct list_head *pargs;
+	uint64_t start_time;
+	uint64_t end_time;
 };
 
 struct uftrace_filter {
