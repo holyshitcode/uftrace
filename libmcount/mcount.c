@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/un.h>
+#include <time.h>
 #include <unistd.h>
 
 /* This should be defined before #include "utils.h" */
@@ -46,6 +47,9 @@
  * settings like -fast and -single to be more efficient in some situation like
  * when no filter is specified in the command line and/or single-thread only.
  */
+
+/*global time to check time limit*/
+uint64_t mcount_global_time;
 
 /* time filter in nsec */
 uint64_t mcount_threshold;
@@ -1068,7 +1072,7 @@ enum filter_result mcount_entry_filter_check(struct mcount_thread_data *mtdp, un
 
 #define FLAGS_TO_CHECK                                                                             \
 	(TRIGGER_FL_DEPTH | TRIGGER_FL_TRACE_ON | TRIGGER_FL_TRACE_OFF | TRIGGER_FL_TIME_FILTER |  \
-	 TRIGGER_FL_SIZE_FILTER)
+	 TRIGGER_FL_SIZE_FILTER | TRIGGER_FL_TIME_ACTION)
 	if (tr->flags & FLAGS_TO_CHECK) {
 		if (tr->flags & TRIGGER_FL_DEPTH) {
 			mtdp->filter.depth = 0;
@@ -1084,6 +1088,14 @@ enum filter_result mcount_entry_filter_check(struct mcount_thread_data *mtdp, un
 
 		if (tr->flags & TRIGGER_FL_SIZE_FILTER)
 			mtdp->filter.size = tr->size;
+
+		if (tr->flags & TRIGGER_FL_TIME_ACTION) {
+			mcount_enabled = false;
+
+			if (mcount_global_time > tr->start_time &&
+			    mcount_global_time < tr->end_time)
+				mcount_enabled = true;
+		}
 	}
 
 #undef FLAGS_TO_CHECK
@@ -1980,6 +1992,13 @@ static void mcount_script_init(enum uftrace_pattern_type patt_type)
 	strv_free(&info.cmds);
 }
 
+static inline uint64_t get_current_time_us(void)
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+}
+
 static __used void mcount_startup(void)
 {
 	char *channel = NULL;
@@ -2141,6 +2160,9 @@ static __used void mcount_startup(void)
 
 	mcount_global_flags &= ~MCOUNT_GFL_SETUP;
 	mtd.recursion_marker = false;
+
+	/*fix in last position for right time */
+	mcount_global_time = get_current_time_us();
 }
 
 static void mcount_cleanup(void)

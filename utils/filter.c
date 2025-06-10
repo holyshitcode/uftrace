@@ -657,7 +657,6 @@ static int parse_time_action(char *action, struct uftrace_trigger *tr,
 static int parse_time_range(char *action, struct uftrace_trigger *tr,
 			    struct uftrace_filter_setting *setting)
 {
-	tr->flags |= TRIGGER_FL_TIME_ACTION;
 	char *sep = strchr(action, '~');
 	if (!sep) {
 		pr_err("invalid time range format: missing '~'\n");
@@ -757,6 +756,18 @@ static int parse_trace_action(char *action, struct uftrace_trigger *tr,
 		tr->flags |= TRIGGER_FL_TRACE_ON;
 	else if (!strcasecmp(action, "off"))
 		tr->flags |= TRIGGER_FL_TRACE_OFF;
+	else if (strchr(action, '~')) {
+		// 시간 범위일 경우 ex) "10s~20s"
+		tr->flags = 0; // 기존 trace 관련 flag 초기화 (필요시 생략 가능)
+		tr->flags |= TRIGGER_FL_TIME_ACTION;
+		return parse_time_range(action, tr, setting);
+	}
+	else if (isdigit(*action)) {
+		// 단일 시간 ex) "10s"
+		tr->flags = 0;
+		tr->flags |= TRIGGER_FL_TIME_FILTER;
+		tr->time = parse_time(action, 3);
+	}
 	else
 		pr_use("skipping invalid trace action: %s\n", action);
 
